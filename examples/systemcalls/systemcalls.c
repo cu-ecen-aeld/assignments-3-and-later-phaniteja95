@@ -1,4 +1,11 @@
 #include "systemcalls.h"
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -9,13 +16,16 @@
 */
 bool do_system(const char *cmd)
 {
+	int ret;
 
-/*
- * TODO  add your code here
- *  Call the system() function with the command set in the cmd
- *   and return a boolean true if the system() call completed with success
- *   or false() if it returned a failure
-*/
+	if (cmd == NULL) {
+		return false;
+	}
+
+	ret = system(cmd);
+	if ((WIFEXITED(ret)) && (WEXITSTATUS(ret) != 0)) {
+		return false;
+	}
 
     return true;
 }
@@ -58,6 +68,26 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+	int ret = 0;
+	int status = 0;
+
+	ret = fork();
+	if (ret == 0) {
+		ret = execv(command[0], &command[0]);
+		if (ret < 0) {
+			printf("[do_exec] Exec failed with %d %s\n", errno, strerror(errno));
+			exit(1);
+		}
+	} else if (ret < 0) {
+		printf("[do_exec] Fork failed with %d %s\n", errno, strerror(errno));
+		return false;
+	}
+
+	ret = wait(&status);
+	if ((WIFEXITED(status)) && (WEXITSTATUS(status) != 0)) {
+		printf("[do_exec] Wait status returned error\n");
+		return false;
+	}
 
     va_end(args);
 
@@ -92,6 +122,36 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+
+	int ret = 0;
+	int status = 0;
+
+	ret = fork();
+	if (ret == 0) {
+		int fd = open(outputfile, O_WRONLY, 0644);
+		if (fd < 0) {
+			printf("[do_exec_redirect] Failed to open file\n");
+			exit(1);
+		}
+
+		dup2(fd, 1);
+		close(fd);
+
+		ret = execv(command[0], &command[0]);
+		if (ret < 0) {
+			printf("[do_exec] Exec failed with %d %s\n", errno, strerror(errno));
+			exit(2);
+		}
+	} else if (ret < 0) {
+		printf("[do_exec] Fork failed with %d %s\n", errno, strerror(errno));
+		return false;
+	}
+
+	ret = wait(&status);
+	if ((WIFEXITED(status)) && (WEXITSTATUS(status) != 0)) {
+		printf("[do_exec] Wait status returned error\n");
+		return false;
+	}
 
     va_end(args);
 

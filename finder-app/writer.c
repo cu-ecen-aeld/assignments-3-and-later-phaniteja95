@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 
 	char *text = argv[2];
 
-syslog(LOG_DEBUG, "Writing %s to %s", text, path);
+	syslog(LOG_DEBUG, "Writing %s to %s", text, path);
 
 	write(fd, text, strlen(text));
 
